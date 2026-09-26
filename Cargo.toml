@@ -11,3 +11,6 @@ description = "Party identities and references used by Xmip."
 
 [dependencies]
 xcore = { package = "xmip-core", git = "https://github.com/IlleNilsson/xmip-core", branch = "main" }
+
+[profile.dev.package."*"]
+opt-level = 3
