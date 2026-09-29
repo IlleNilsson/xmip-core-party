@@ -13,8 +13,8 @@ use xcore::{CredentialRef, IdentityContext, Mechanism, Purpose};
 ///
 /// The purposes carry different things, and that asymmetry is the point:
 ///
-/// - **Receive** carries a *matcher* — `CN=partner-x.example`, `sub=partner-x`,
-///   `ISA06=PARTNERX`. Comparing an arriving credential against it needs no
+/// - **Receive** carries a *matcher* — `CN=party-x.example`, `sub=party-x`,
+///   `ISA06=PARTYX`. Comparing an arriving credential against it needs no
 ///   secret, so nothing secret is stored.
 /// - **Process** and **Send** carry a [`CredentialRef`] as well, because both
 ///   mean producing the proof.
@@ -110,7 +110,7 @@ mod tests {
 
     #[test]
     fn receiving_stores_a_matcher_and_the_other_two_store_a_reference() {
-        let receiving = Identity::receiving(mechanism::mutual_tls(), "CN=partner-x.example");
+        let receiving = Identity::receiving(mechanism::mutual_tls(), "CN=party-x.example");
         let sending = Identity::sending(
             mechanism::ssh_key(),
             "SHA256:abc",
@@ -152,7 +152,7 @@ mod tests {
 
     #[test]
     fn a_receive_matcher_isolates_nothing_because_it_holds_nothing() {
-        let matcher = Identity::receiving(mechanism::mutual_tls(), "CN=partner-x.example");
+        let matcher = Identity::receiving(mechanism::mutual_tls(), "CN=party-x.example");
 
         assert!(matcher.context().is_none());
     }
