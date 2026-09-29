@@ -29,9 +29,9 @@ pub enum PartyKind {
 /// keeps the two apart — a Party is recognised, a role is granted.
 ///
 /// What the registry buys is one place to edit. The alternative — credentials
-/// configured inline on every Receive and Send Location — makes a partner's
+/// configured inline on every Receive and Send Location — makes a Party's
 /// certificate rotation a search across the estate rather than one edit, and
-/// leaves nothing able to answer "what does partner-x use to reach us, and what
+/// leaves nothing able to answer "what does party-x use to reach us, and what
 /// do we use to reach them". ADR-0019 clause 4.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Party {
@@ -69,7 +69,7 @@ impl Party {
     ///
     /// Both are required. Asking for "the mutual-tls identity" without saying
     /// what for is the question ADR-0019 clause 4 refuses: the certificate a
-    /// partner presents to Xmip is not the one Xmip presents to that partner,
+    /// Party presents to Xmip is not the one Xmip presents to that Party,
     /// and answering with either would be right half the time.
     #[must_use]
     pub fn identity(&self, mechanism: &str, purpose: Purpose) -> Option<&str> {
@@ -84,21 +84,21 @@ mod tests {
     use super::*;
     use xcore::{CredentialRef, IdentityClass, Layer, mechanism};
 
-    fn partner() -> Party {
-        Party::new(PartyId::new(1), PartyKind::Organization, "partner-x")
+    fn party_x() -> Party {
+        Party::new(PartyId::new(1), PartyKind::Organization, "party-x")
             .with(Identity::receiving(
                 mechanism::mutual_tls(),
-                "CN=partner-x.example",
+                "CN=party-x.example",
             ))
-            .with(Identity::receiving(mechanism::oauth2(), "sub=partner-x"))
+            .with(Identity::receiving(mechanism::oauth2(), "sub=party-x"))
             .with(Identity::receiving(
                 mechanism::edi_x12_interchange(),
-                "ISA06=PARTNERX",
+                "ISA06=PARTYX",
             ))
             .with(Identity::processing(
                 mechanism::kerberos(),
-                "svc-partner-x@CORP.EXAMPLE",
-                CredentialRef::new("windows-credential-manager", "svc-partner-x"),
+                "svc-party-x@CORP.EXAMPLE",
+                CredentialRef::new("windows-credential-manager", "svc-party-x"),
             ))
             .with(Identity::sending(
                 mechanism::ssh_key(),
@@ -112,7 +112,7 @@ mod tests {
         // Three ways in, one to run as, one to go out with. The alternative —
         // credentials inline on every Receive and Send Location — makes a
         // certificate rotation a search across the estate rather than one edit.
-        let party = partner();
+        let party = party_x();
 
         assert_eq!(party.configured_for(Purpose::Receive).count(), 3);
         assert_eq!(party.configured_for(Purpose::Process).count(), 1);
@@ -131,13 +131,13 @@ mod tests {
         // X12 over a drop folder is a real deployment and Xmip carries it. What
         // the registry must not do is make it look like every other accepted
         // identity — authorization has to be able to tell the difference.
-        let claims_only = Party::new(PartyId::new(2), PartyKind::Organization, "partner-y").with(
-            Identity::receiving(mechanism::edi_x12_interchange(), "ISA06=PARTNERY"),
+        let claims_only = Party::new(PartyId::new(2), PartyKind::Organization, "party-y").with(
+            Identity::receiving(mechanism::edi_x12_interchange(), "ISA06=PARTYY"),
         );
 
         assert_eq!(
             claims_only.identity("edi-x12-interchange", Purpose::Receive),
-            Some("ISA06=PARTNERY")
+            Some("ISA06=PARTYY")
         );
         assert!(
             !claims_only
@@ -148,7 +148,7 @@ mod tests {
 
     #[test]
     fn a_party_holds_identities_in_several_classes_at_once() {
-        let classes: Vec<IdentityClass> = partner()
+        let classes: Vec<IdentityClass> = party_x()
             .configured_for(Purpose::Receive)
             .map(|identity| identity.mechanism.class())
             .collect();
@@ -160,11 +160,11 @@ mod tests {
 
     #[test]
     fn purpose_is_part_of_the_question() {
-        let party = partner();
+        let party = party_x();
 
         assert_eq!(
             party.identity("mutual-tls", Purpose::Receive),
-            Some("CN=partner-x.example")
+            Some("CN=party-x.example")
         );
         assert_eq!(party.identity("mutual-tls", Purpose::Send), None);
         assert_eq!(
@@ -179,7 +179,7 @@ mod tests {
         // and a string lookup silently returns None when a mechanism is
         // renamed. Anything inside Xmip asks the mechanism rather than
         // spelling the name again.
-        let party = partner();
+        let party = party_x();
 
         for mechanism in [mechanism::mutual_tls(), mechanism::oauth2()] {
             assert!(
@@ -192,7 +192,7 @@ mod tests {
 
     #[test]
     fn identity_travels_on_both_layers_for_one_party() {
-        let party = partner();
+        let party = party_x();
 
         let transport = party
             .configured_for(Purpose::Receive)
@@ -211,6 +211,6 @@ mod tests {
 
     #[test]
     fn an_unknown_mechanism_is_absent_rather_than_guessed() {
-        assert_eq!(partner().identity("kerberos", Purpose::Receive), None);
+        assert_eq!(party_x().identity("kerberos", Purpose::Receive), None);
     }
 }
