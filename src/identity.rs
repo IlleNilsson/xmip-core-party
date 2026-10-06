@@ -52,7 +52,7 @@ impl Identity {
         }
     }
 
-    /// What a Process runs as, and therefore what decides its host process.
+    /// What a Process runs as, and therefore what decides its Host Service.
     #[must_use]
     pub fn processing(
         mechanism: Mechanism,
@@ -86,7 +86,7 @@ impl Identity {
     /// The identity context this runs under. ADR-0022 clause 2.
     ///
     /// Only meaningful for [`Purpose::Process`] and [`Purpose::Send`], which
-    /// hold credential material that a host process would keep in memory. A
+    /// hold credential material that a Host Service would keep in memory. A
     /// receive-side matcher holds nothing, so it isolates nothing.
     #[must_use]
     pub fn context(&self) -> Option<IdentityContext> {
@@ -128,9 +128,9 @@ mod tests {
     }
 
     #[test]
-    fn what_a_process_runs_as_decides_its_host_process() {
+    fn what_a_process_runs_as_decides_its_host_service() {
         // ADR-0022 clause 3. Two Processes under different service accounts
-        // cannot share a host process, because a process holds tickets and
+        // cannot share a Host Service, because a process holds tickets and
         // session keys and the operating system is the only thing enforcing
         // the boundary.
         let one = Identity::processing(
@@ -147,7 +147,7 @@ mod tests {
         let one = one.context().expect("a process runs as something");
         let other = other.context().expect("a process runs as something");
 
-        assert!(!one.may_share_host_process(&other));
+        assert!(!one.may_share_host_service(&other));
     }
 
     #[test]
