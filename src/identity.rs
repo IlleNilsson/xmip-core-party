@@ -1,4 +1,4 @@
-//! One way a Party is recognised, or one Xmip acts under on its behalf.
+//! One way a Party is recognized, or one Xmip acts under on its behalf.
 //!
 //! The vocabulary — [`Mechanism`], [`Purpose`], [`CredentialRef`],
 //! [`IdentityContext`] — lives in `xmip-core`, because the three gates need it
@@ -9,7 +9,7 @@
 
 use xcore::{CredentialRef, IdentityContext, Mechanism, Purpose};
 
-/// One way a Party is recognised, or one Xmip acts under on its behalf.
+/// One way a Party is recognized, or one Xmip acts under on its behalf.
 ///
 /// The purposes carry different things, and that asymmetry is the point:
 ///
@@ -158,7 +158,7 @@ mod tests {
     }
 
     #[test]
-    fn an_operator_is_a_party_recognised_the_same_way_as_any_other() {
+    fn an_operator_is_a_party_recognized_the_same_way_as_any_other() {
         // A person driving the CLI, the PowerShell module or either GUI. The
         // passkey exists for exactly this population.
         let operator = Identity::operating(mechanism::passkey(), "ilian@consid.se");
