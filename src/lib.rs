@@ -3,8 +3,8 @@
 //! The Party: the thing that has identities.
 //!
 //! Not a credential store and not a role. It is the actor, per ADR-0007 and
-//! ADR-0008, and its identities are how it is recognised. Security roles stay
-//! separate under ADR-0009: a Party is recognised, a role is granted.
+//! ADR-0008, and its identities are how it is recognized. Security roles stay
+//! separate under ADR-0009: a Party is recognized, a role is granted.
 
 pub mod identity;
 
@@ -20,13 +20,13 @@ pub enum PartyKind {
     Service,
 }
 
-/// One actor, and every way it is recognised or acted under.
+/// One actor, and every way it is recognized or acted under.
 ///
 /// **A Party is a shortcut to an Identity, and grants nothing.** Resolving a
 /// credential to a Party is a registry lookup, not a decision: the arrival is
 /// authenticated and authorized at runtime whether or not it resolved to
 /// something with a name. Being a known Party is not a permission, and ADR-0009
-/// keeps the two apart — a Party is recognised, a role is granted.
+/// keeps the two apart — a Party is recognized, a role is granted.
 ///
 /// What the registry buys is one place to edit. The alternative — credentials
 /// configured inline on every Receive and Send Location — makes a Party's
