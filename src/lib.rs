@@ -2,7 +2,7 @@
 
 //! The Party: the thing that has identities.
 //!
-//! Not a credential store and not a role. It is the actor, per ADR-0007 and
+//! Not where secrets are kept and not a role. It is the actor, per ADR-0007 and
 //! ADR-0008, and its identities are how it is recognized. Security roles stay
 //! separate under ADR-0009: a Party is recognized, a role is granted.
 
@@ -82,7 +82,7 @@ impl Party {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use xcore::{CredentialRef, IdentityClass, Layer, mechanism};
+    use xcore::{IdentityClass, Layer, SecretName, mechanism};
 
     fn party_x() -> Party {
         Party::new(PartyId::new(1), PartyKind::Organization, "party-x")
@@ -98,19 +98,19 @@ mod tests {
             .with(Identity::processing(
                 mechanism::kerberos(),
                 "svc-party-x@CORP.EXAMPLE",
-                CredentialRef::new("windows-credential-manager", "svc-party-x"),
+                SecretName::new("svc-party-x").expect("a name"),
             ))
             .with(Identity::sending(
                 mechanism::ssh_key(),
                 "SHA256:abc",
-                CredentialRef::new("ssh-agent", "xmip-outbound"),
+                SecretName::new("xmip-outbound").expect("a name"),
             ))
     }
 
     #[test]
     fn one_registry_serves_receive_process_and_send() {
         // Three ways in, one to run as, one to go out with. The alternative —
-        // credentials inline on every Receive and Send Location — makes a
+        // secrets inline on every Receive and Send Location — makes a
         // certificate rotation a search across the estate rather than one edit.
         let party = party_x();
 
@@ -118,11 +118,12 @@ mod tests {
         assert_eq!(party.configured_for(Purpose::Process).count(), 1);
         assert_eq!(party.configured_for(Purpose::Send).count(), 1);
 
-        // Only the two that produce proof carry a reference to material.
+        // Only the two that produce proof name a secret.
         assert!(
-            party.identities.iter().all(
-                |identity| identity.credential.is_some() == identity.purpose.needs_credential()
-            )
+            party
+                .identities
+                .iter()
+                .all(|identity| identity.secret.is_some() == identity.purpose.needs_secret())
         );
     }
 

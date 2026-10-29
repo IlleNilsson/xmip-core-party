@@ -1,13 +1,14 @@
 //! One way a Party is recognized, or one Xmip acts under on its behalf.
 //!
-//! The vocabulary — [`Mechanism`], [`Purpose`], [`CredentialRef`],
+//! The vocabulary — [`Mechanism`], [`Purpose`], [`SecretName`],
 //! [`IdentityContext`] — lives in `xmip-core`, because the three gates need it
 //! and none of them depends on the Party. What is left here is the Party's own
 //! half: the stored identity, which is a matcher for the two purposes that
-//! verify something arriving and a credential reference for the two that
-//! produce proof. ADR-0019 clause 4.
+//! verify something arriving and the name of a secret for the two that produce
+//! proof, kept in the Administration Database (ADR-0019 clause 4, amendment
+//! 2026-10-29).
 
-use xcore::{CredentialRef, IdentityContext, Mechanism, Purpose};
+use xcore::{IdentityContext, Mechanism, Purpose, SecretName};
 
 /// One way a Party is recognized, or one Xmip acts under on its behalf.
 ///
@@ -16,7 +17,7 @@ use xcore::{CredentialRef, IdentityContext, Mechanism, Purpose};
 /// - **Receive** carries a *matcher* — `CN=party-x.example`, `sub=party-x`,
 ///   `ISA06=PARTYX`. Comparing an arriving credential against it needs no
 ///   secret, so nothing secret is stored.
-/// - **Process** and **Send** carry a [`CredentialRef`] as well, because both
+/// - **Process** and **Send** carry a [`SecretName`] as well, because both
 ///   mean producing the proof.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Identity {
@@ -24,8 +25,8 @@ pub struct Identity {
     pub purpose: Purpose,
     /// The value under that mechanism.
     pub value: String,
-    /// Where the material lives. Always `None` for [`Purpose::Receive`].
-    pub credential: Option<CredentialRef>,
+    /// The secret it presents, by name. Always `None` for [`Purpose::Receive`].
+    pub secret: Option<SecretName>,
 }
 
 impl Identity {
@@ -37,7 +38,7 @@ impl Identity {
             mechanism,
             purpose: Purpose::Operate,
             value: value.into(),
-            credential: None,
+            secret: None,
         }
     }
 
@@ -48,56 +49,48 @@ impl Identity {
             mechanism,
             purpose: Purpose::Receive,
             value: value.into(),
-            credential: None,
+            secret: None,
         }
     }
 
     /// What a Process runs as, and therefore what decides its Host Service.
     #[must_use]
-    pub fn processing(
-        mechanism: Mechanism,
-        value: impl Into<String>,
-        credential: CredentialRef,
-    ) -> Self {
+    pub fn processing(mechanism: Mechanism, value: impl Into<String>, secret: SecretName) -> Self {
         Self {
             mechanism,
             purpose: Purpose::Process,
             value: value.into(),
-            credential: Some(credential),
+            secret: Some(secret),
         }
     }
 
     /// Something Xmip offers as a client. Presenting needs the material, so
-    /// this names where it is kept.
+    /// this names the secret it presents.
     #[must_use]
-    pub fn sending(
-        mechanism: Mechanism,
-        value: impl Into<String>,
-        credential: CredentialRef,
-    ) -> Self {
+    pub fn sending(mechanism: Mechanism, value: impl Into<String>, secret: SecretName) -> Self {
         Self {
             mechanism,
             purpose: Purpose::Send,
             value: value.into(),
-            credential: Some(credential),
+            secret: Some(secret),
         }
     }
 
     /// The identity context this runs under. ADR-0022 clause 2.
     ///
     /// Only meaningful for [`Purpose::Process`] and [`Purpose::Send`], which
-    /// hold credential material that a Host Service would keep in memory. A
+    /// hold a secret that a Host Service would keep in memory. A
     /// receive-side matcher holds nothing, so it isolates nothing.
     #[must_use]
     pub fn context(&self) -> Option<IdentityContext> {
-        if !self.purpose.needs_credential() {
+        if !self.purpose.needs_secret() {
             return None;
         }
 
         let context = IdentityContext::new(&self.mechanism).with("principal", self.value.clone());
 
-        Some(match &self.credential {
-            Some(credential) => context.with("credential", credential.to_string()),
+        Some(match &self.secret {
+            Some(secret) => context.with("secret", secret.to_string()),
             None => context,
         })
     }
@@ -109,21 +102,21 @@ mod tests {
     use xcore::mechanism;
 
     #[test]
-    fn receiving_stores_a_matcher_and_the_other_two_store_a_reference() {
+    fn receiving_stores_a_matcher_and_the_other_two_name_a_secret() {
         let receiving = Identity::receiving(mechanism::mutual_tls(), "CN=party-x.example");
         let sending = Identity::sending(
             mechanism::ssh_key(),
             "SHA256:abc",
-            CredentialRef::new("ssh-agent", "xmip-outbound"),
+            SecretName::new("xmip-outbound").expect("a name"),
         );
 
         // Nothing secret is kept for the receive side, because matching an
         // arriving credential against a name needs no secret.
-        assert!(receiving.credential.is_none());
-        assert!(!receiving.purpose.needs_credential());
+        assert!(receiving.secret.is_none());
+        assert!(!receiving.purpose.needs_secret());
         assert_eq!(
-            sending.credential.as_ref().map(ToString::to_string),
-            Some("ssh-agent:xmip-outbound".to_string())
+            sending.secret.as_ref().map(ToString::to_string),
+            Some("xmip-outbound".to_string())
         );
     }
 
@@ -136,12 +129,12 @@ mod tests {
         let one = Identity::processing(
             mechanism::kerberos(),
             "svc-orders@CORP.EXAMPLE",
-            CredentialRef::new("windows-credential-manager", "svc-orders"),
+            SecretName::new("svc-orders").expect("a name"),
         );
         let other = Identity::processing(
             mechanism::kerberos(),
             "svc-billing@CORP.EXAMPLE",
-            CredentialRef::new("windows-credential-manager", "svc-billing"),
+            SecretName::new("svc-billing").expect("a name"),
         );
 
         let one = one.context().expect("a process runs as something");
@@ -164,8 +157,8 @@ mod tests {
         let operator = Identity::operating(mechanism::passkey(), "ilian@consid.se");
 
         assert_eq!(operator.purpose, Purpose::Operate);
-        assert!(!operator.purpose.needs_credential());
-        assert!(operator.credential.is_none());
+        assert!(!operator.purpose.needs_secret());
+        assert!(operator.secret.is_none());
         assert!(operator.context().is_none());
     }
 }
