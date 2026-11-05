@@ -10,5 +10,5 @@ identity lives in `xmip-core`, because the three gates need it and none of
 them may depend on the Party.
 
 ADR-0019 governs identity in both directions; `doc/terminology.md`, *Identity,
-Party and direction*, is the vocabulary. `architecture.toml` carries the
+Party and direction*, is the vocabulary. `architecture.xmip` carries the
 maturity.
