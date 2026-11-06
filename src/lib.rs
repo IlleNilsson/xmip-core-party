@@ -36,20 +36,34 @@ pub enum PartyKind {
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct Party {
     pub party_id: PartyId,
-    pub kind: PartyKind,
+    /// What it is, where that was said; a Party `[[parties]]` declares
+    /// does not say.
+    pub kind: Option<PartyKind>,
     pub name: String,
     pub identities: Vec<Identity>,
 }
 
 impl Party {
     #[must_use]
-    pub fn new(party_id: PartyId, kind: PartyKind, name: impl Into<String>) -> Self {
+    pub fn new(
+        party_id: PartyId,
+        kind: impl Into<Option<PartyKind>>,
+        name: impl Into<String>,
+    ) -> Self {
         Self {
             party_id,
-            kind,
+            kind: kind.into(),
             name: name.into(),
             identities: Vec::new(),
         }
+    }
+
+    /// Whether this Party holds `value` under `mechanism` for `purpose`:
+    /// what a verified value is resolved to its Party by.
+    #[must_use]
+    pub fn holds(&self, mechanism: &str, purpose: Purpose, value: &str) -> bool {
+        self.configured_for(purpose)
+            .any(|identity| identity.mechanism.name() == mechanism && identity.value == value)
     }
 
     #[must_use]
@@ -208,6 +222,22 @@ mod tests {
         // connection; the message says on whose behalf the content was made.
         assert_eq!(transport, 2);
         assert_eq!(message, 1);
+    }
+
+    #[test]
+    fn a_party_holds_every_value_it_has_under_a_mechanism_not_only_the_first() {
+        // A certificate rotation leaves two subjects in place for a while,
+        // and an arrival under either is the Party's.
+        let party = party_x().with(Identity::receiving(
+            mechanism::mutual_tls(),
+            "CN=party-x-next.example",
+        ));
+
+        for subject in ["CN=party-x.example", "CN=party-x-next.example"] {
+            assert!(party.holds("mutual-tls", Purpose::Receive, subject));
+        }
+        assert!(!party.holds("mutual-tls", Purpose::Send, "CN=party-x.example"));
+        assert!(!party.holds("oauth2", Purpose::Receive, "CN=party-x.example"));
     }
 
     #[test]
